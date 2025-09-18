@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Manado Chess League — Leaderboard (Clean Fixed)</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net"/>
+<style>
+  :root{
+    --bg:#0f1a14; --panel:#15221b; --panel-2:#1b2b22; --ink:#f5fff8; --muted:#cfe3d7;
+    --brand:#49a25a; --brand-2:#2e7d32; --line:#203528; --pill:#8bc34a; --accent-red:#e53935;
+  }
+  html,body{margin:0;background:linear-gradient(135deg,#1b1630 0%,#271d49 60%,#3b235d 100%);color:var(--ink);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+  .wrap{max-width:1200px;margin:0 auto;padding:18px}
+  .header{background:linear-gradient(90deg,var(--brand) 0%,var(--brand-2) 100%);padding:18px 12px;border-bottom:4px solid #0d2818}
+  .title{font-size:42px;font-weight:900;text-align:center;letter-spacing:.5px}
+  .grid{display:grid;grid-template-columns:2fr 1fr;gap:24px;margin-top:18px}
+  .card{background:var(--panel);border:2px solid var(--line);border-radius:14px;overflow:hidden}
+  .card .head{display:flex;align-items:center;gap:10px;background:linear-gradient(90deg,#388e3c,#2e7d32);padding:10px 14px;font-weight:800;text-transform:uppercase}
+  .pill{margin-left:auto;background:var(--pill);color:#2a1648;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:900}
+  .title-chip{display:inline-block;background:#1f4ed8;border:1px solid #1639a5;border-radius:999px;color:#e9f1ff;padding:2px 10px;font-size:14px;font-weight:900;letter-spacing:.3px}
+  .card .body{padding:10px 14px}
+  table{width:100%;border-collapse:collapse}
+  thead th{background:linear-gradient(90deg,#43a047,#2e7d32);color:#fff;padding:10px 8px;text-align:left}
+  tbody td{padding:10px 8px;border-bottom:1px solid var(--line)}
+  .col-no{width:64px;text-align:center}
+  .col-games{width:90px;text-align:right}
+  .col-rating{width:120px;text-align:right}
+  .row-alt{background:rgba(255,255,255,0.04)}
+  .badge{background:#173d25;border:1px solid #2e7d32;border-radius:999px;padding:2px 10px}
+  .podium{display:grid;grid-template-columns:1fr;gap:6px;margin-top:8px}
+  .slot{display:flex;align-items:center;gap:10px;background:#15221b;border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+  .medal{font-size:18px}
+  .name{font-weight:700}
+  .score{margin-left:auto;color:var(--muted)}
+  .admin{margin-top:22px;background:var(--panel-2);border:2px dashed var(--line);border-radius:14px;padding:12px}
+  .flex{display:flex;gap:10px;flex-wrap:wrap}
+  input[type=file],input[type=text],input[type=number],select{background:#120f25;color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:10px}
+  input[type=text]{min-width:220px}
+  .btn{background:linear-gradient(90deg,#43a047,#2e7d32);border:0;color:#1b1630;font-weight:800;padding:10px 14px;border-radius:10px;cursor:pointer}
+  .btn.outline{background:transparent;color:#fff;border:1px solid var(--line)}
+  .hint{color:var(--muted);font-size:14px}
+  .debug{margin-top:8px;color:#bba9d6;font-size:12px;white-space:pre-wrap}
+  .footer{color:var(--muted);text-align:center;margin:20px 0 36px}
+  .pTitle{display:inline-block;background:var(--accent-red);color:#fff;font-weight:900;margin-right:6px;padding:2px 8px;border-radius:999px;letter-spacing:.4px}
+  #toast{position:fixed;right:16px;bottom:16px;background:#2e7d32;color:#fff;padding:10px 14px;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.25);opacity:0;pointer-events:none;transform:translateY(10px);transition:opacity .25s,transform .25s;z-index:9999;font-weight:800}
+  #toast.show{opacity:1;transform:translateY(0)}
+  details summary{cursor:pointer;user-select:none;list-style:none}
+  details summary::-webkit-details-marker{display:none}
+  .summary-btn{display:inline-block;background:#1c2a22;border:1px solid var(--line);padding:6px 10px;border-radius:10px;font-weight:700}
+  /* Latest panel shows official-only */  
+  #tour-body .latest .tname{font-size:26px;font-weight:900;}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+<div aria-atomic="true" aria-live="polite" id="toast" role="status">DONE ✅</div>
+<div class="header"><div class="wrap"><div class="title">Manado Chess League</div></div></div>
+<div class="wrap">
+  <div class="grid">
+    <div class="card">
+      <div class="head">Chess Leaderboard</div>
+      <div class="body">
+        <table id="table">
+          <thead>
+            <tr><th class="col-no">No</th><th>Player</th><th class="col-games">Games</th><th class="col-rating">Rating</th></tr>
+          </thead>
+          <tbody id="tbody">
+            <tr><td class="hint" colspan="4">No players yet — upload a Chess-Results file below.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="head">Latest Tournaments</div>
+      <div class="body" id="tour-body">
+        <div id="officialLatestMount"></div>
+        <div class="hint">This panel shows only your uploaded Official Standings and never the computed tournaments.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="admin">
+    <h3>Update Leaderboard</h3>
+    <div class="flex">
+      <input id="file" type="file" accept=".csv,.xlsx,.xls"/>
+      <input id="tname" type="text" placeholder="Tournament name (defaults to file name)"/>
+      <button class="btn" id="process">Upload &amp; Update Ratings</button>
+      <button class="btn outline" id="reset">Undo last upload</button>
+      <button class="btn outline" id="backup">Download Backup</button>
+    </div>
+    <div class="hint" style="margin-top:6px">CSV &amp; Excel supported. We aggregate rounds and ignore duplicates. K=24, start rating=2000.</div>
+    <div class="debug" id="msg">Ready.</div>
+  </div>
+
+  <div class="admin" style="margin-top:16px">
+    <h3>Manage Players</h3>
+    <div class="flex">
+      <select id="playerSelect"></select>
+      <input id="playerNewName" placeholder="New player name" type="text"/>
+      <button class="btn" id="btnRenamePlayer">Rename Player</button>
+      <select id="playerTitleSelect">
+        <option value="">— Add/Change Title —</option>
+        <option>GM</option><option>IM</option><option>FM</option><option>CM</option><option>NM</option>
+        <option>WGM</option><option>WIM</option><option>WFM</option><option>WCM</option><option>PM</option>
+      </select>
+      <button class="btn outline" id="btnApplyTitle">Apply Title</button>
+    </div>
+    <div class="hint">Titles show as <span class="pTitle">GM</span> before the name.</div>
+  </div>
+
+  <div class="admin" id="officialUploadPanel" style="margin-top:16px">
+    <h3>Upload Official Standings (Latest Only)</h3>
+    <div class="hint" style="margin:4px 0 10px">Replaces the Latest panel only. Leaderboard ratings stay untouched.</div>
+    <div class="flex">
+      <input id="off_title" type="text" placeholder="Tournament (e.g., Piala Gubernur 2025 • Round 3)"/>
+      <input id="off_file" type="file" accept=".csv,.xlsx,.xls"/>
+      <button class="btn" id="off_upload">Upload Official Standings</button>
+      <button class="btn outline" id="off_clear" title="Clear all official cards">Clear Official Latest</button>
+    </div>
+    <div class="debug" id="off_msg"></div>
+  </div>
+
+  <div class="footer">Data is stored locally in your browser. Use Backup to move computers.</div>
+</div>
+
+<script>
+// Toast
+function showToast(text='DONE ✅', ms=1800){
+  const el = document.getElementById('toast');
+  if(!el) return; el.textContent = text; el.classList.add('show');
+  setTimeout(()=> el.classList.remove('show'), ms);
+}
+
+// State
+const K=24, R0=2000, STORE='mcl_state_clean_v1';
+
+function load(){ try{ return JSON.parse(localStorage.getItem(STORE)||'null'); }catch(e){ return null; } }
+function save(st){ localStorage.setItem(STORE, JSON.stringify(st)); }
+
+// initial state
+const state = load() || {
+  ratings: {},   // name -> rating
+  games: {},     // name -> total games
+  tournaments: [], // [{name, at, games:[{W,B,R,round}], keys:SetObject}]
+  lastImport: null
+};
+
+function expected(ra,rb){ return 1/(1+Math.pow(10,(rb-ra)/400)); }
+function cleanName(s){ if(!s) return ''; s=String(s).trim(); return s.endsWith(',')? s.slice(0,-1): s; }
+function stripTitle(full){
+  const s=String(full||'').trim();
+  const m=s.match(/^(GM|IM|FM|CM|NM|WGM|WIM|WFM|WCM|PM)\b\s*(.*)$/i);
+  return m? (m[2]||'').trim(): s;
+}
+function formatName(full){
+  const s = String(full||'').trim();
+  const m = s.match(/^(GM|IM|FM|CM|NM|WGM|WIM|WFM|WCM|PM)\b\s*(.*)$/i);
+  if(m){ return `<span class="pTitle">${m[1].toUpperCase()}</span>${m[2]||''}`; }
+  return s;
+}
+
+function normRes(s){
+  if(!s) return null;
+  s=String(s).toLowerCase();
+  s=s.replace(/\s+/g,'').replace(/[—–]/g,'-').replace(/½/g,'1/2').replace(/0\.5/g,'1/2');
+  if(s==='draw'||s==='=') s='1/2-1/2';
+  return (s==='1-0'||s==='0-1'||s==='1/2-1/2')? s : null;
+}
+
+function detectDelim(head){
+  const cands=[',',';','\t','|'];
+  for(const d of cands){
+    const parts=head.split(d).map(x=>x.toLowerCase());
+    if(parts.some(x=>x.includes('white'))&&parts.some(x=>x.includes('black'))&&parts.some(x=> (x.includes('result')||x.includes('res')||x.includes('score')) )) return d;
+  }
+  return ',';
+}
+
+function parseCSV(text){
+  const lines = String(text).split(/\r?\n/).filter(l=>l.trim().length);
+  if(!lines.length) return {rows:[], debug:'No lines'};
+  let headerIdx=0; let delim=detectDelim(lines[0]);
+  for(let i=0;i<Math.min(20,lines.length);i++){
+    const parts=lines[i].split(delim).map(x=>x.trim().toLowerCase());
+    if(parts.some(x=>x.includes('white'))&&parts.some(x=>x.includes('black'))&&parts.some(x=> (x.includes('result')||x.includes('res')||x.includes('score')) )){ headerIdx=i; break; }
+  }
+  const headers=lines[headerIdx].split(delim).map(x=>x.trim()); const lc=headers.map(h=>h.toLowerCase());
+  const idxW=lc.findIndex(h=>h.includes('white'));
+  const idxB=lc.findIndex(h=>h.includes('black'));
+  const idxR=lc.findIndex(h=> (h.includes('result')||h.includes('res')||h.includes('score')) );
+  const idxRound=lc.findIndex(h=> (h.includes('round')||h==='rd'||h.includes('rd')) );
+  const idxWTitle=lc.findIndex(h=> (h.includes('title') && h.includes('white')) || h==='wtitle' || h==='white title');
+  const idxBTitle=lc.findIndex(h=> (h.includes('title') && h.includes('black')) || h==='btitle' || h==='black title');
+  if(idxW<0||idxB<0||idxR<0) return {rows:[], debug:'Missing White/Black/Result header'};
+  const rows=[];
+  for(let i=headerIdx+1;i<lines.length;i++){
+    const c=lines[i].split(delim);
+    let W=cleanName(c[idxW]), B=cleanName(c[idxB]);
+    if(idxWTitle>=0){ const t=(c[idxWTitle]||'').trim(); if(t) W=(t+' '+W).trim(); }
+    if(idxBTitle>=0){ const t=(c[idxBTitle]||'').trim(); if(t) B=(t+' '+B).trim(); }
+    const R=normRes(c[idxR]); if(!W||!B||!R) continue;
+    const round=idxRound>=0? String(c[idxRound]||'').trim():'';
+    rows.push({W,B,R,round});
+  }
+  return {rows, debug:`CSV games: ${rows.length} • Round col: ${idxRound>=0?'yes':'no'}`};
+}
+
+async function parseXLSX(file){
+  if(!window.XLSX) throw new Error('XLSX library not loaded.');
+  const data=await file.arrayBuffer(); const wb=XLSX.read(data,{type:'array'});
+  let rows=[], notes=[];
+  for(const name of wb.SheetNames){
+    const A=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1});
+    let headerIdx=-1;
+    for(let i=0;i<Math.min(20,A.length);i++){
+      const line=(A[i]||[]).map(v=>String(v||'').toLowerCase());
+      if(line.some(x=>x.includes('white'))&&line.some(x=>x.includes('black'))&&line.some(x=> (x.includes('result')||x.includes('res')||x.includes('score')) )){ headerIdx=i; break; }
+    }
+    if(headerIdx===-1){ notes.push(`Sheet ${name}: no header`); continue; }
+    const headers=A[headerIdx].map(v=>String(v||'')); const lc=headers.map(h=>h.toLowerCase());
+    const idxW=lc.findIndex(h=>h.includes('white'));
+    const idxB=lc.findIndex(h=>h.includes('black'));
+    const idxR=lc.findIndex(h=> (h.includes('result')||h.includes('res')||h.includes('score')) );
+    const idxRound=lc.findIndex(h=> (h.includes('round')||h==='rd'||h.includes('rd')) );
+    const idxWTitle=lc.findIndex(h=> (h.includes('title') && h.includes('white')) || h==='wtitle' || h==='white title');
+    const idxBTitle=lc.findIndex(h=> (h.includes('title') && h.includes('black')) || h==='btitle' || h==='black title');
+    if(idxW<0||idxB<0||idxR<0){ notes.push(`Sheet ${name}: missing cols`); continue; }
+    const countBefore=rows.length;
+    for(let i=headerIdx+1;i<A.length;i++){
+      const r=A[i]||[];
+      let W=cleanName(r[idxW]), B=cleanName(r[idxB]);
+      if(idxWTitle>=0){ const t=String(r[idxWTitle]||'').trim(); if(t) W=(t+' '+W).trim(); }
+      if(idxBTitle>=0){ const t=String(r[idxBTitle]||'').trim(); if(t) B=(t+' '+B).trim(); }
+      const R=normRes(r[idxR]); if(!W||!B||!R) continue;
+      const round=idxRound>=0? String(r[idxRound]||'').trim():'';
+      rows.push({W,B,R,round});
+    }
+    notes.push(`Sheet ${name}: +${rows.length-countBefore}`);
+  }
+  return {rows, debug:rows.length?`Excel ok • ${notes.join(' • ')}`:`Excel: no usable sheet`};
+}
+
+function applyGame(w,b,r){
+  const rw=state.ratings[w]??R0, rb=state.ratings[b]??R0;
+  const Ew=expected(rw,rb);
+  const Sw=(r==='1-0')?1:(r==='0-1')?0:0.5;
+  const nw=rw+K*(Sw-Ew), nb=rb+K*((1-Sw)-(1-Ew));
+  state.ratings[w]=Math.round(nw*10)/10; state.ratings[b]=Math.round(nb*10)/10;
+  state.games[w]=(state.games[w]||0)+1; state.games[b]=(state.games[b]||0)+1;
+}
+
+function recomputeAll(){
+  state.ratings={}; state.games={};
+  const ordered=[...(state.tournaments||[])].sort((a,b)=> new Date(a.at)-new Date(b.at));
+  for(const t of ordered){
+    for(const g of (t.games||[])){
+      if(g && g.W && g.B && g.R) applyGame(g.W, g.B, g.R);
+    }
+  }
+}
+
+function tournamentByName(name){
+  const key = String(name||'').trim().toLowerCase();
+  let rec = (state.tournaments||[]).find(t=> String(t.name||'').trim().toLowerCase()===key);
+  if(!rec){
+    rec = {name, at:new Date().toISOString(), games:[], sigs:{}};
+    state.tournaments.push(rec);
+  }
+  return rec;
+}
+
+function processRows(rows, tournamentName){
+  if(!rows.length){ alert('No valid games found'); return; }
+  const tname = tournamentName || 'Event';
+  const rec = tournamentByName(tname);
+  let accepted=0;
+  for(const r of rows){
+    const W=cleanName(r.W), B=cleanName(r.B), R=r.R, round=r.round||'';
+    const sig = `${W}#${B}#${R}#${round}`;
+    if(rec.sigs[sig]) continue;
+    rec.sigs[sig]=true;
+    rec.games.push({W,B,R,round});
+    accepted++;
+  }
+  state.lastImport = { name:tname, count:accepted, at:new Date().toISOString() };
+  recomputeAll(); save(state); render();
+  document.getElementById('msg').textContent = `Added ${accepted} game(s) to ${tname}.`;
+  showToast('Done! ✅');
+}
+
+function undoLastUpload(){
+  const LI = state.lastImport;
+  if(!LI || !LI.name){ alert('Nothing to undo'); return; }
+  const key = String(LI.name||'').trim().toLowerCase();
+  const rec = (state.tournaments||[]).find(t=> String(t.name||'').trim().toLowerCase()===key);
+  if(!rec){ alert('Nothing to undo'); state.lastImport=null; return; }
+  if(!confirm(`Remove the last ${LI.count||0} uploaded game(s) from "${rec.name}"?`)) return;
+  // Remove last LI.count games that belong to that tournament
+  let removed = 0;
+  while(removed < (LI.count||0) && rec.games.length){
+    const g = rec.games.pop();
+    const sig = `${g.W}#${g.B}#${g.R}#${g.round||''}`;
+    delete rec.sigs[sig];
+    removed++;
+  }
+  state.lastImport=null;
+  // Possibly remove empty tournament
+  if(!rec.games.length){
+    state.tournaments = state.tournaments.filter(t=> t!==rec);
+  }
+  recomputeAll(); save(state); render();
+  document.getElementById('msg').textContent = `Undid ${removed} game(s) from "${rec ? rec.name : LI.name}".`;
+  showToast('Undone');
+}
+
+function playerNames(){
+  const set = new Set();
+  for(const t of (state.tournaments||[])){
+    for(const g of (t.games||[])){ set.add(g.W); set.add(g.B); }
+  }
+  return [...set].sort((a,b)=> a.localeCompare(b));
+}
+
+function populatePlayerSelect(){
+  const sel = document.getElementById('playerSelect'); if(!sel) return;
+  const names = playerNames();
+  sel.innerHTML = names.map(n=>`<option value="${n.replace(/"/g,'&quot;')}">${n}</option>`).join('');
+  const input = document.getElementById('playerNewName'); if(names.length && input) input.value = stripTitle(names[0]);
+}
+
+function renamePlayer(oldName, newName){
+  oldName = cleanName(oldName); newName = cleanName(newName);
+  if(!oldName || !newName){ alert('Provide both the current and new player name.'); return; }
+  if(oldName===newName){ alert('That is already the name.'); return; }
+  for(const t of (state.tournaments||[])){
+    for(const g of (t.games||[])){
+      if(g.W===oldName) g.W = newName;
+      if(g.B===oldName) g.B = newName;
+    }
+    // rebuild signatures
+    t.sigs = {};
+    for(const g of t.games){ t.sigs[`${g.W}#${g.B}#${g.R}#${g.round||''}`]=true; }
+  }
+  state.lastImport = null;
+  recomputeAll(); save(state); render();
+  document.getElementById('msg').textContent = `Player renamed: ${oldName} → ${newName}`;
+  showToast('Player updated ✅'); populatePlayerSelect();
+}
+
+function setPlayerTitle(name, title){
+  if(!title){ alert('Pick a title.'); return; }
+  const base = stripTitle(name);
+  const newName = `${title} ${base}`.trim();
+  renamePlayer(name, newName);
+}
+
+function render(){
+  // Ratings leaderboard
+  const tbody = document.getElementById('tbody');
+  const list=Object.entries(state.ratings).map(([n,r])=>({n,r}))
+    .sort((a,b)=>b.r-a.r||a.n.localeCompare(b.n));
+  tbody.innerHTML = list.length
+    ? list.map((p,i)=>`<tr class="${i%2?'row-alt':''}">
+         <td class="col-no">${i+1}</td>
+         <td>${formatName(p.n)}</td>
+         <td class="col-games"><span class="badge">${state.games[p.n]||0}</span></td>
+         <td class="col-rating"><span class="badge">${Math.round(p.r)}</span></td>
+       </tr>`).join('')
+    : '<tr><td colspan="4" class="hint">No players yet</td></tr>';
+
+  populatePlayerSelect();
+}
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  // Upload games
+  document.getElementById('process')?.addEventListener('click', async ()=>{
+    const f = document.getElementById('file')?.files?.[0]; if(!f){ alert('Choose a file'); return; }
+    const raw = document.getElementById('tname')?.value || f.name; const dot = raw.lastIndexOf('.'); const tname = dot>0? raw.substring(0,dot): raw;
+    try{
+      let parsed;
+      const lower = (f.name||'').toLowerCase();
+      if(lower.endsWith('.xlsx')||lower.endsWith('.xls')) parsed = await parseXLSX(f); else parsed = parseCSV(await f.text());
+      document.getElementById('msg').textContent = parsed.debug || 'Parsed.';
+      processRows(parsed.rows, tname);
+    }catch(err){ document.getElementById('msg').textContent = 'Error: '+ (err.message||String(err)); }
+  });
+
+  // Undo & backup
+  document.getElementById('reset')?.addEventListener('click', undoLastUpload);
+  document.getElementById('backup')?.addEventListener('click', ()=>{
+    const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='leaderboard_backup.json'; a.click();
+    showToast('Backup downloaded');
+  });
+
+  // Players
+  document.getElementById('btnRenamePlayer')?.addEventListener('click', ()=>{
+    const sel=document.getElementById('playerSelect');
+    const input=document.getElementById('playerNewName');
+    if(!sel?.value||!input?.value){ alert('Pick a player and type a new name.'); return; }
+    renamePlayer(sel.value, input.value);
+  });
+  document.getElementById('btnApplyTitle')?.addEventListener('click', ()=>{
+    const sel=document.getElementById('playerSelect');
+    const tsel=document.getElementById('playerTitleSelect');
+    if(!sel?.value){ alert('Pick a player first.'); return; }
+    const title = tsel?.value || '';
+    if(!title){ alert('Pick a title'); return; }
+    setPlayerTitle(sel.value, title);
+  });
+
+  render();
+});
+</script>
+
+<!-- Official Standings: official-only rendering -->
+<script>
+(function(){
+  function readList(){ try{ return JSON.parse(localStorage.getItem('officialList_clean_v1')||'[]'); }catch(e){ return []; } }
+  function saveList(L){ try{ localStorage.setItem('officialList_clean_v1', JSON.stringify(L||[])); }catch(e){} }
+
+  function parseCSV(text){
+    const lines = String(text||'').split(/\r?\n/).filter(l=>l.trim().length);
+    if(!lines.length) return {columns:[], rows:[]};
+    const cand=[',',';','\t','|']; let delim=','; for(const d of cand){ if(lines[0].split(d).length>1){ delim=d; break; } }
+    const H = lines[0].split(delim).map(s=>s.trim());
+    const rows=[];
+    for(let r=1;r<lines.length;r++){
+      const cells = lines[r].split(delim);
+      const obj={}; for(let c=0;c<H.length;c++){ obj[H[c]] = (cells[c]!=null? String(cells[c]).trim() : ''); }
+      const hasVal = Object.values(obj).some(v=> String(v).trim().length);
+      if(hasVal) rows.push(obj);
+    }
+    return {columns:H, rows};
+  }
+
+  async function parseXLSX(file){
+    if(!window.XLSX) throw new Error('XLSX library not loaded.');
+    const data = await file.arrayBuffer();
+    const wb = XLSX.read(data, {type:'array'});
+    for(const name of wb.SheetNames){
+      const A = XLSX.utils.sheet_to_json(wb.Sheets[name], {header:1});
+      if(!A || !A.length) continue;
+      const rows = A.map(r=> (r||[])).filter(r=> r.some(x=> String(x||'').trim().length ));
+      if(rows.length<2) continue;
+      const H = rows[0].map(x=> String(x||'').trim());
+      const body = rows.slice(1).map(r=>{ const obj={}; H.forEach((h,idx)=> obj[h] = (r[idx]!=null? String(r[idx]) : '')); return obj; });
+      return {columns:H, rows:body};
+    }
+    return {columns:[], rows:[]};
+  }
+
+  function esc(s){ return String(s==null?'':s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'); }
+  function renderList(list){
+    const mount = document.getElementById('officialLatestMount');
+    if(!mount) return;
+    if(!list || !list.length){ mount.innerHTML=''; return; }
+    const cards = list.map(one=>{
+      const cols = one.columns || [];
+      const rows = one.rows || [];
+      const title = one.title || 'Official Standings';
+      const idxName = cols.findIndex(c=> /name|player/i.test(c));
+      const idxPts  = cols.findIndex(c=> /pts?|points?|score/i.test(c));
+      const items = rows.slice(0, 3).map((r,i)=>{
+        const nm = idxName>=0 ? r[cols[idxName]] : Object.values(r)[0];
+        const pts = idxPts>=0 ? r[cols[idxPts]] : '';
+        const medal = ['🥇','🥈','🥉'][i] || '•';
+        return `<div class="slot"><span class="medal">${medal}</span><span class="name">${esc(nm)}</span><span class="score">${esc(pts)} pts</span></div>`;
+      }).join('');
+      const thead = '<thead><tr>' + cols.map(c=>`<th>${esc(c)}</th>`).join('') + '</tr></thead>';
+      const tbody = '<tbody>' + rows.map(r=>'<tr>'+cols.map(c=>`<td>${esc(r[c])}</td>`).join('')+'</tr>').join('') + '</tbody>';
+      return `<div class="latest">
+        <div class="tname">${esc(title)}</div>
+        <div class="podium">${items}</div>
+        <details class="full">
+          <summary>Show full standings</summary>
+          <table class="full-standings">${thead}${tbody}</table>
+        </details>
+      </div>`;
+    }).join('<hr class="sep"/>');
+    mount.innerHTML = cards;
+  }
+
+  document.addEventListener('DOMContentLoaded', ()=>{
+    // initial paint
+    renderList(readList());
+
+    // Wire uploader
+    const up = document.getElementById('off_upload');
+    const file = document.getElementById('off_file');
+    const titleEl = document.getElementById('off_title');
+    const msg = document.getElementById('off_msg');
+    up?.addEventListener('click', async (ev)=>{
+      ev.preventDefault();
+      const f = file.files && file.files[0];
+      if(!f){ alert('Choose a CSV or Excel file.'); return; }
+      try{
+        const lower = (f.name||'').toLowerCase();
+        const parsed = (lower.endsWith('.xlsx')||lower.endsWith('.xls')) ? await parseXLSX(f) : parseCSV(await f.text());
+        if(!parsed.columns.length || !parsed.rows.length){ msg.textContent='Could not read any rows/columns.'; return; }
+        const obj = {
+          id: Date.now()+'-'+Math.random().toString(36).slice(2),
+          title: (titleEl && titleEl.value && titleEl.value.trim()) || 'Official Standings',
+          columns: parsed.columns,
+          rows: parsed.rows,
+          updated: Date.now()
+        };
+        const list = readList();
+        // Replace any with same normalized title
+        const norm = (s)=> String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+        const key = norm(obj.title);
+        const filtered = list.filter(x=> norm(x.title)!==key);
+        filtered.unshift(obj);
+        // Cap at 5 cards
+        renderList(filtered.slice(0,5));
+        saveList(filtered.slice(0,5));
+        msg.textContent = 'Added: ' + obj.title + ' • total ' + filtered.slice(0,5).length;
+      }catch(err){
+        msg.textContent = 'Error: ' + (err && err.message ? err.message : String(err));
+      }
+    });
+
+    document.getElementById('off_clear')?.addEventListener('click', ()=>{
+      localStorage.removeItem('officialList_clean_v1');
+      renderList([]);
+    });
+  });
+})();
+</script>
+</body>
+</html>
